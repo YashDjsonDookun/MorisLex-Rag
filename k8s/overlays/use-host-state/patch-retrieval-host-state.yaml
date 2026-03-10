@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: morislex-rag-retrieval
+  namespace: morislex-rag
+spec:
+  template:
+    spec:
+      volumes:
+        - name: host-rag-root
+          hostPath:
+            path: /Users/djson/Desktop/MorisLex-Rag
+            type: Directory
+      containers:
+        - name: retrieval
+          volumeMounts:
+            - name: host-rag-root
+              mountPath: /app/state
+              subPath: state
+            - name: host-rag-root
+              mountPath: /app/configs
+              subPath: configs

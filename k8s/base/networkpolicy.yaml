@@ -1,0 +1,45 @@
+# NetworkPolicy: default deny egress so LLM never goes to the internet.
+# Allow: same-namespace (UI -> pipeline, UI -> retrieval, retrieval -> ollama), DNS.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: morislex-rag-default
+  namespace: morislex-rag
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic from pods in the same namespace (UI calling pipeline and retrieval)
+    - from:
+        - podSelector: {}
+  egress:
+    # Same namespace: retrieval -> ollama, UI -> pipeline, UI -> retrieval (all TCP)
+    - to:
+        - podSelector: {}
+    # DNS (CoreDNS in kube-system; label exists in K8s 1.21+)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Allow Ollama pod to reach the internet so it can pull models (registry.ollama.ai, etc.).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: morislex-rag-ollama-egress
+  namespace: morislex-rag
+spec:
+  podSelector:
+    matchLabels:
+      component: ollama
+  policyTypes:
+    - Egress
+  egress:
+    - {}

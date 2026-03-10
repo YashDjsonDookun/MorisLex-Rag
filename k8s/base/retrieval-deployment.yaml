@@ -1,0 +1,110 @@
+# Retrieval service: search + RAG chat only. Reads from shared Chroma; independent of pipeline.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: morislex-rag-retrieval
+  namespace: morislex-rag
+  labels:
+    app: morislex-rag
+    component: retrieval
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: morislex-rag
+      component: retrieval
+  template:
+    metadata:
+      labels:
+        app: morislex-rag
+        component: retrieval
+    spec:
+      terminationGracePeriodSeconds: 25
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: retrieval
+          image: morislex-rag:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.services.retrieval_service"]
+          ports:
+            - containerPort: 8082
+          env:
+            - name: DATA_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: morislex-rag-config
+                  key: DATA_DIR
+            - name: LLM_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: morislex-rag-config
+                  key: LLM_BASE_URL
+            - name: HF_HOME
+              value: "/app/.cache/huggingface"
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: TRANSFORMERS_OFFLINE
+              value: "1"
+          volumeMounts:
+            - name: pvc-data
+              mountPath: /app/state
+              subPath: state
+            - name: pvc-data
+              mountPath: /app/configs
+              subPath: configs
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 6
+            initialDelaySeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+      volumes:
+        - name: pvc-data
+          persistentVolumeClaim:
+            claimName: morislex-rag-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: morislex-rag-retrieval
+  namespace: morislex-rag
+  labels:
+    app: morislex-rag
+spec:
+  selector:
+    app: morislex-rag
+    component: retrieval
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082
+  type: ClusterIP

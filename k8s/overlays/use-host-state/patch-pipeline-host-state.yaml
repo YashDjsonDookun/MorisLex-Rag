@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: morislex-rag-pipeline
+  namespace: morislex-rag
+spec:
+  template:
+    spec:
+      volumes:
+        - name: host-rag-root
+          hostPath:
+            path: /Users/djson/Desktop/MorisLex-Rag
+            type: Directory
+      containers:
+        - name: pipeline
+          volumeMounts:
+            - name: host-rag-root
+              mountPath: /app/state
+              subPath: state
+            - name: host-rag-root
+              mountPath: /app/configs
+              subPath: configs
+            - name: host-rag-root
+              mountPath: /app/logs
+              subPath: logs
+            - name: host-data
+              mountPath: /data
+              readOnly: true

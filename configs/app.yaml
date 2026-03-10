@@ -1,0 +1,66 @@
+# MORISLEX-RAG — main config (data path, chunking, embedding, LLM, watchdog)
+# Override with .env: DATA_DIR, LLM_BASE_URL, LLM_MODEL, LOG_LEVEL, STREAMLIT_PORT
+
+project:
+  name: "MorisLex-RAG"
+  display_name: "Mauritius Legal RAG"
+  version: "0.1.0"
+
+paths:
+  data_dir: "./data"
+  state_dir: "./state"
+  logs_dir: "./logs"
+  configs_dir: "./configs"
+
+# Data source: configurable directory (Engine exports or copy)
+ingest:
+  data_directory: ""
+  manifest_file: "rag_manifest.csv"
+  chunking_file: "for_chunking.csv"
+  metadata_dir: "metadata"
+
+chunking:
+  strategy: "by_heading"
+  chunk_size: 512
+  overlap: 64
+  respect_headers: true
+
+embedding:
+  provider: "sentence-transformers"
+  model: "all-MiniLM-L6-v2"
+  device: "cpu"
+  batch_size: 128
+
+vector_store:
+  type: "chroma"
+  path: "./state/chroma_db"
+  collection_name: "morislex"
+
+retrieval:
+  top_k: 5
+  min_score: 0.0
+
+llm:
+  runtime: "ollama"
+  provider: "ollama"
+  base_url: "http://localhost:11434"
+  model: "qwen2.5:3b"
+  models:
+    primary: "qwen2.5:3b"
+    fallback: "qwen2.5:0.5b"
+    comparison: "llama3.2:1b"
+  parameters:
+    temperature: 0.2
+    top_p: 0.9
+    max_tokens: 2048
+  active_tier: "primary"
+  strict_local: true
+  playground:
+    base_url: ""
+    model: ""
+  temperature: 0.2
+  max_tokens: 2048
+
+watchdog:
+  enabled: false
+  auto_reindex: false

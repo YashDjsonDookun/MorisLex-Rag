@@ -1,0 +1,6 @@
+# Same as base (Ollama is included by default). Kept for backward compatibility.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base

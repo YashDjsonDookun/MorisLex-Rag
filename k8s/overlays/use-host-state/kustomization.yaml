@@ -1,0 +1,25 @@
+# Use the same state/configs/logs as local run (./deploy.sh --local) so you don't re-index.
+# Edit RAG_REPO_HOST_PATH in the patch files if your repo is elsewhere.
+# Deploy: kubectl apply -k k8s/overlays/use-host-state
+# Then run ./deploy.sh (it will use the overlay if you point it here) or:
+#   kubectl apply -k k8s/overlays/use-host-state
+#   kubectl port-forward -n morislex-rag svc/morislex-rag-ui 8502:8502
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+patches:
+  - path: patch-ui-host-state.yaml
+    target:
+      kind: Deployment
+      name: morislex-rag-ui
+  - path: patch-pipeline-host-state.yaml
+    target:
+      kind: Deployment
+      name: morislex-rag-pipeline
+  - path: patch-retrieval-host-state.yaml
+    target:
+      kind: Deployment
+      name: morislex-rag-retrieval

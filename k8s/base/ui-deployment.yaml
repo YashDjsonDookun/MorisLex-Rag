@@ -1,0 +1,140 @@
+# UI only: Streamlit. Does not run the pipeline in-process; calls the pipeline worker service.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: morislex-rag-ui
+  namespace: morislex-rag
+  labels:
+    app: morislex-rag
+    component: ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: morislex-rag
+      component: ui
+  template:
+    metadata:
+      labels:
+        app: morislex-rag
+        component: ui
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: ui
+          image: morislex-rag:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8502
+          env:
+            - name: PIPELINE_SERVICE_URL
+              value: "http://morislex-rag-pipeline:8080"
+            - name: PIPELINE_API_PREFIX
+              value: "api"
+            - name: RETRIEVAL_SERVICE_URL
+              # Short name; same namespace so K8s DNS resolves (FQDN can fail in Rancher Desktop)
+              value: "http://morislex-rag-retrieval:8082"
+            - name: DATA_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: morislex-rag-config
+                  key: DATA_DIR
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: morislex-rag-config
+                  key: LOG_LEVEL
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: TRANSFORMERS_OFFLINE
+              value: "1"
+          volumeMounts:
+            - name: pvc-data
+              mountPath: /app/state
+              subPath: state
+            - name: pvc-data
+              mountPath: /app/configs
+              subPath: configs
+            - name: pvc-data
+              mountPath: /app/logs
+              subPath: logs
+            - name: host-data
+              mountPath: /data
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8502
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8502
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8502
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "100m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+      volumes:
+        - name: pvc-data
+          persistentVolumeClaim:
+            claimName: morislex-rag-data
+        - name: host-data
+          hostPath:
+            path: /Users/djson/Desktop/MorisLex-Engine/data
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: morislex-rag-ui
+  namespace: morislex-rag
+  labels:
+    app: morislex-rag
+spec:
+  selector:
+    app: morislex-rag
+    component: ui
+  ports:
+    - name: http
+      port: 8502
+      targetPort: 8502
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: morislex-rag-ui-lb
+  namespace: morislex-rag
+  labels:
+    app: morislex-rag
+spec:
+  selector:
+    app: morislex-rag
+    component: ui
+  ports:
+    - name: http
+      port: 8502
+      targetPort: 8502
+  type: LoadBalancer

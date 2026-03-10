@@ -1,0 +1,108 @@
+# Pipeline worker: runs ingest -> chunk -> embed -> index. Heavy memory/CPU; separate pod so UI stays up.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: morislex-rag-pipeline
+  namespace: morislex-rag
+  labels:
+    app: morislex-rag
+    component: pipeline
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: morislex-rag
+      component: pipeline
+  template:
+    metadata:
+      labels:
+        app: morislex-rag
+        component: pipeline
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: pipeline
+          image: morislex-rag:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.services.pipeline_worker"]
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: morislex-rag-config
+          env:
+            - name: HF_HOME
+              value: "/app/.cache/huggingface"
+          volumeMounts:
+            - name: pvc-data
+              mountPath: /app/state
+              subPath: state
+            - name: pvc-data
+              mountPath: /app/configs
+              subPath: configs
+            - name: pvc-data
+              mountPath: /app/logs
+              subPath: logs
+            - name: host-data
+              mountPath: /data
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 24
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "250m"
+            limits:
+              memory: "6Gi"
+              cpu: "2000m"
+      volumes:
+        - name: pvc-data
+          persistentVolumeClaim:
+            claimName: morislex-rag-data
+        - name: host-data
+          hostPath:
+            path: /Users/djson/Desktop/MorisLex-Engine/data
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: morislex-rag-pipeline
+  namespace: morislex-rag
+  labels:
+    app: morislex-rag
+spec:
+  selector:
+    app: morislex-rag
+    component: pipeline
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP

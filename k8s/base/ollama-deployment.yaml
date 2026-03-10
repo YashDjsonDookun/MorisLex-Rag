@@ -1,0 +1,81 @@
+# Ollama in-cluster (default prod). Retrieval uses LLM_BASE_URL=http://ollama:11434. Models pulled by deploy.sh.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: morislex-rag
+  labels:
+    app: morislex-rag
+    component: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: morislex-rag
+      component: ollama
+  template:
+    metadata:
+      labels:
+        app: morislex-rag
+        component: ollama
+    spec:
+      securityContext:
+        runAsNonRoot: false
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+          ports:
+            - containerPort: 11434
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+          livenessProbe:
+            tcpSocket:
+              port: 11434
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            # qwen2.5:3b needs ~2.5Gi for model+KV. Request 2Gi so pod can schedule on 4–6Gi nodes (e.g. Rancher Desktop); limit 6Gi.
+            # If your node has 8Gi+ and you see OOM, raise request/limit in this file.
+            requests:
+              memory: "2Gi"
+              cpu: "500m"
+            limits:
+              memory: "6Gi"
+              cpu: "4000m"
+      volumes:
+        - name: ollama-data
+          persistentVolumeClaim:
+            claimName: ollama-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: morislex-rag
+  labels:
+    app: morislex-rag
+spec:
+  selector:
+    app: morislex-rag
+    component: ollama
+  ports:
+    - name: http
+      port: 11434
+      targetPort: 11434
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-data
+  namespace: morislex-rag
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
