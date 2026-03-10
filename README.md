@@ -1,6 +1,6 @@
 # MORISLEX-RAG
 
-Mauritius Legal RAG: ingest, chunk, embed, index, retrieve, and chat over Mauritian legal content. Data is read from a **configurable data directory** (typically [MorisLex-Engine](https://github.com/your-org/MorisLex-Engine) exports).
+Mauritius Legal RAG: ingest, chunk, embed, index, retrieve, and chat over Mauritian legal content. Data is read from a **configurable data directory** (typically [MorisLex-Engine](https://github.com/YashDjsonDookun/MorisLex-Engine) exports).
 
 ## Quick start
 
@@ -46,7 +46,7 @@ The RAG reads from a single configurable data directory containing:
 - `metadata/doc_<uid>.json`
 - Extracted `.md` files (paths in CSVs; resolved relative to the data directory)
 
-See [MorisLex-Engine](https://github.com/your-org/MorisLex-Engine) and `docs/` for the full blueprint and decisions.
+See [MorisLex-Engine](https://github.com/YashDjsonDookun/MorisLex-Engine) and `docs/` for the full blueprint and decisions.
 
 ## Deploy to Rancher Desktop
 
